@@ -1,0 +1,16 @@
+# Local config (contains account settings)
+config.env
+
+# Runtime output
+logs/
+*.csv
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Editor / OS
+.idea/
+.vscode/
+.DS_Store

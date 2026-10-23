@@ -1,36 +1,36 @@
-# IB_test
+# ibkr-xengine
 
-该仓库包含若干示例脚本，演示如何通过 [ib_insync](https://github.com/erdewit/ib_insync) 与 [Backtrader](https://www.backtrader.com/) 使用 Interactive Brokers 提供的行情数据进行简单的量化交易策略开发、回测以及下单操作。代码主要用于学习和测试用途。
+基于 [ib_async](https://github.com/ib-api-reloaded/ib_async) 的 Interactive Brokers 自动交易执行引擎，适合部署在 Linux VPS 上，配合 IB Gateway 运行。
 
-## 环境要求
+策略：1 分钟 K 线量价动量（成交量放大 + 短均线在中均线之上），触发后市价买入，并挂基于 ATR 的止盈 / 止损 bracket 子单。已有持仓或挂单时不会重复开仓。
 
-- Python 3.8 及以上
-- [Interactive Brokers TWS](https://www.interactivebrokers.com/) 或 IB Gateway 运行在本地 `7497` 端口
-- 依赖库：`ib_insync`、`backtrader`、`pandas`、`apscheduler` 等
+> 回测脚本和样例数据保存在 `research` 分支。
 
-可通过 `pip install -r requirements.txt`（如有）或手动安装以上依赖。
+## 文件
 
-## 目录说明
+- `engine.py`：交易引擎，每分钟第 5 秒运行一次策略，自动重连 IB。
+- `healthcheck.py`：检查能否连接 IB Gateway（失败时退出码为 1）。
+- `config.env.example`：配置模板。
+- `logs/`：运行日志 `engine.log` 和信号 / 交易记录 `live_trade_log.csv`（自动创建）。
 
-- `newbt.py`：使用 Backtrader 实现的回测脚本，策略为量价动量模型，示例数据存储在 `tsla_signals.csv`。
-- `mom_test.py`：通过 IB 接口实时获取数据，计算技术指标并生成信号，可将结果保存为 CSV。
-- `pt_test.py`：异步自动交易示例，利用 APScheduler 每分钟运行一次策略，触发信号后通过 IB 下单，并设置止盈止损。
-- `order_test.py`：最基础的下单测试脚本。
-- `test.py`：简单的连接测试。
-- `*.csv`：示例数据及交易记录，包括 `trade_log.csv` 等。
+## 安装
 
-## 快速开始
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+cp config.env.example config.env   # 按需修改
+```
 
-1. 确保 TWS 或 IB Gateway 已登陆并监听本地 `7497` 端口。
-2. 根据需要修改脚本中的合约符号及参数。
-3. 运行回测示例：
-   ```bash
-   python newbt.py
-   ```
-4. 查看终端输出的资金变化和 `trade_log.csv` 中记录的交易明细。
+## 运行
 
-> 以上脚本仅用于学习示例，实际交易需注意风险并自行承担责任。
+1. 启动 IB Gateway 并开启 API（模拟盘端口 `4002`，实盘 `4001`）。
+2. 检查连接：`.venv/bin/python healthcheck.py`
+3. 启动引擎：`.venv/bin/python engine.py`
+
+`DRY_RUN=true`（默认）时只记录信号、不下单。确认在模拟盘上运行正常后，再在 `config.env` 中设为 `false`。
+
+> 本项目仅用于学习，实际交易风险自负。
 
 ## 许可证
 
-本项目采用 [MIT License](LICENSE)。
+[MIT License](LICENSE)
