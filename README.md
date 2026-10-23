@@ -57,6 +57,8 @@ cp config.env.example config.env   # 按需修改
 | `RISK_PCT` | `0.5` | 仓位分配比例：按账户净值的 50% 计算买入股数，并非止损风险比例 |
 | `LOG_DIR` | 项目目录下的 `logs/` | 日志保存目录 |
 
+`healthcheck.py` 默认使用 `IB_CLIENT_ID + 100`，可通过 `HEALTHCHECK_CLIENT_ID` 单独指定。
+
 ### 内置策略配置
 
 以下参数由 `strategy.py` 使用，经引擎加载后传给 `StrategyParams`。
@@ -67,8 +69,6 @@ cp config.env.example config.env   # 按需修改
 | `SHORT_MA` / `MID_MA` | `5` / `10` | 短期与中期均线周期 |
 | `ATR_PERIOD` | `14` | 波动幅度均值周期，当前按每根 K 线的最高价减最低价计算 |
 | `TP_ATR` / `SL_ATR` | `2.5` / `1.5` | 止盈与止损的波动幅度倍数 |
-
-`healthcheck.py` 默认使用 `IB_CLIENT_ID + 100`，可通过 `HEALTHCHECK_CLIENT_ID` 单独指定。
 
 > 本项目仅用于学习，实际交易风险自负。
 
