@@ -10,7 +10,8 @@
 
 ## 文件
 
-- `engine.py`：交易引擎，每分钟第 5 秒运行一次策略，自动重连 IB。
+- `engine.py`：连接 IBKR、取数、调用策略、持仓 / 资金检查、下单、日志和调度；每分钟第 5 秒运行一次，自动重连 IB。
+- `strategy.py`：独立的策略参数、指标计算、入场判断与止盈 / 止损价格计算，不连接 IBKR。
 - `healthcheck.py`：检查能否连接 IB Gateway（失败时退出码为 1）。
 - `config.env.example`：配置模板。
 - `logs/`：运行日志 `engine.log` 和信号 / 交易记录 `live_trade_log.csv`（自动创建）。
@@ -33,7 +34,9 @@ cp config.env.example config.env   # 按需修改
 
 ## 配置
 
-配置从项目目录下的 `config.env` 加载，已有环境变量优先。
+配置从项目目录下的 `config.env` 加载，已有环境变量优先。引擎加载配置后将策略参数传给 `strategy.py`；配置名称、默认值与启动命令保持不变。
+
+`strategy.apply_strategy(df)` 可独立计算默认策略；自定义参数可通过 `StrategyParams` 传入。函数沿用原行为，在传入的 DataFrame 上添加指标和 `signal` 列。
 
 | 配置 | 默认值 | 说明 |
 | --- | --- | --- |

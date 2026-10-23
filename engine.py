@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import math
 import os
 import signal
 from datetime import datetime
@@ -9,6 +8,8 @@ from pathlib import Path
 import pandas as pd
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from ib_async import IB, LimitOrder, MarketOrder, Stock, StopOrder, util
+
+from strategy import StrategyParams, apply_strategy, exit_prices, has_entry_signal
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -34,14 +35,8 @@ SYMBOL = os.getenv('SYMBOL', 'BMNR')
 EXCHANGE = os.getenv('EXCHANGE', 'SMART')
 CURRENCY = os.getenv('CURRENCY', 'USD')
 
-# === 策略参数 ===
-VOL_PERIOD = int(os.getenv('VOL_PERIOD', '20'))
-VOL_RATIO_TH = float(os.getenv('VOL_RATIO_TH', '1.45'))
-SHORT_MA = int(os.getenv('SHORT_MA', '5'))
-MID_MA = int(os.getenv('MID_MA', '10'))
-ATR_PERIOD = int(os.getenv('ATR_PERIOD', '14'))
-TP_ATR = float(os.getenv('TP_ATR', '2.5'))
-SL_ATR = float(os.getenv('SL_ATR', '1.5'))
+# === 策略参数与执行仓位配置 ===
+STRATEGY_PARAMS = StrategyParams.from_config(os.environ)
 RISK_PCT = float(os.getenv('RISK_PCT', '0.5'))
 
 LOG_DIR = Path(os.getenv('LOG_DIR', BASE_DIR / 'logs'))
@@ -92,18 +87,6 @@ async def fetch_data():
     return df
 
 
-# === 策略逻辑 ===
-def apply_strategy(df):
-    df['vol_avg'] = df['volume'].rolling(VOL_PERIOD).mean()
-    df['vol_ratio'] = df['volume'] / df['vol_avg']
-    df['shortMA'] = df['close'].rolling(SHORT_MA).mean()
-    df['midMA'] = df['close'].rolling(MID_MA).mean()
-    df['atr'] = (df['high'] - df['low']).rolling(ATR_PERIOD).mean()
-
-    df['signal'] = (df['vol_ratio'] > VOL_RATIO_TH) & (df['shortMA'] > df['midMA'])
-    return df
-
-
 # === 持仓 / 挂单检查，避免重复开仓 ===
 def has_exposure():
     if any(p.contract.symbol == SYMBOL and p.position != 0 for p in ib.positions()):
@@ -138,14 +121,14 @@ async def run_strategy():
         if df is None or len(df) < 2:
             log.warning("没有收到历史数据")
             return
-        df = apply_strategy(df)
+        df = apply_strategy(df, STRATEGY_PARAMS)
 
         # 最后一根 K 线仍在形成中，使用上一根已完成的 K 线判断信号
         last_row = df.iloc[-2]
         price = last_row['close']
         atr = last_row['atr']
 
-        if not last_row['signal'] or math.isnan(atr):
+        if not has_entry_signal(last_row):
             log.info(f"当前无信号。最后价格：{price:.2f}")
             return
         if has_exposure():
@@ -161,8 +144,7 @@ async def run_strategy():
             log.warning(f"计算股数为 0（资金 {cash:.2f}，价格 {price:.2f}），跳过")
             return
 
-        tp_price = round(price + TP_ATR * atr, 2)
-        sl_price = round(price - SL_ATR * atr, 2)
+        tp_price, sl_price = exit_prices(price, atr, STRATEGY_PARAMS)
 
         if DRY_RUN:
             log.info(f"[DRY_RUN] 触发信号，拟买入 {quantity} 股 @ ~{price:.2f}，TP {tp_price}，SL {sl_price}")
